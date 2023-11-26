@@ -13,7 +13,7 @@ fn start() -> Result<(), JsValue> {
         .unwrap()
         .dyn_into::<WebGl2RenderingContext>()?;
 
-    let size = 4000.0;
+    let size = 2000.0;
 
     let thingy: HtmlCanvasElement = context.canvas().unwrap().dyn_into().unwrap();
 
@@ -175,8 +175,8 @@ fn draw(context: &WebGl2RenderingContext, vert_count: i32) {
     // context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
     context.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, vert_count);
-    context.draw_arrays(WebGl2RenderingContext::TRIANGLE_FAN, 0, vert_count);
-    context.draw_arrays(WebGl2RenderingContext::LINE_LOOP, 0, vert_count);
+    // context.draw_arrays(WebGl2RenderingContext::TRIANGLE_FAN, 0, vert_count);
+    // context.draw_arrays(WebGl2RenderingContext::LINE_LOOP, 0, vert_count);
 }
 
 pub fn compile_shader(
