@@ -1,5 +1,9 @@
+use crate::webgl::*;
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader};
+use web_sys::{HtmlCanvasElement, WebGl2RenderingContext};
+
+pub mod transformations;
+pub mod webgl;
 
 #[wasm_bindgen(start)]
 fn start() -> Result<(), JsValue> {
@@ -21,62 +25,26 @@ fn start() -> Result<(), JsValue> {
     canvas.set_width((size * scale) as u32);
     canvas.set_height((size * scale) as u32);
 
+    // let canvas_size = (canvas.width(), canvas.height());
+    let canvas_size = (966 as f32, 966 as f32);
+
     context.viewport(0, 0, thingy.width() as i32, thingy.height() as i32);
 
     // vert shader assigns gl position
     let vert_shader = compile_shader(
         &context,
         WebGl2RenderingContext::VERTEX_SHADER,
-        r##"#version 300 es
- 
-        precision highp float;
-
-        // uniform mat4 u_Transform;
-
-        in vec4 position;
-        in vec4 idkColor;
-
-        out vec4 inColor;
-
-        void main() {
-            inColor = idkColor;
-            // inColor = vec4(position.x, 0.0, 0.0, 1);
-            // gl_Position = u_Transform * position;
-            gl_Position = position;
-        }
-        "##,
+        include_str!("./shader.vert"),
     )?;
 
     // frag shader assigns rgba value
     let frag_shader = compile_shader(
         &context,
         WebGl2RenderingContext::FRAGMENT_SHADER,
-        r##"#version 300 es
-    
-        precision highp float;
-
-        in vec4 inColor;
-        out vec4 outColor;
-        
-        void main() {
-            // outColor = vec4(0.5, 0.2, 1, 1);
-            outColor = inColor;
-        }
-        "##,
+        include_str!("./shader.frag"),
     )?;
     let program = link_program(&context, &vert_shader, &frag_shader)?;
     context.use_program(Some(&program));
-
-    // let vertices: [f32; 12] = [
-    //     -1.0, -1.0, 0.0, 1.0, -1.0, 0.0, -0.3, -0.3, 0.0, -1.0, 1.0, 0.0, // stuff
-    // ];
-
-    // let thingy = [
-    //     [0.0, -0.25, -0.50],
-    //     [0.0, 0.25, 0.00],
-    //     [0.5, -0.25, 0.25],
-    //     [-0.5, -0.25, 0.25],
-    // ];
 
     let vertices: [f32; 36] = [
         0.5, -0.25, 0.25, 0.0, 0.25, 0.0, -0.5, -0.25, 0.25, -0.5, -0.25, 0.25, 0.0, 0.25, 0.0,
@@ -84,24 +52,45 @@ fn start() -> Result<(), JsValue> {
         0.5, -0.25, 0.25, -0.5, -0.25, 0.25,
     ];
     let colors: [f32; 48] = [
-        1.0, 0.5, 0.6, 1.0, // color
-        1.0, 0.5, 0.6, 1.0, // color
-        1.0, 0.5, 0.6, 1.0, // color
-        0.0, 0.5, 1.0, 1.0, // color
-        0.0, 0.5, 1.0, 1.0, // color
-        0.0, 0.5, 1.0, 1.0, // color
-        0.0, 0.5, 0.6, 1.0, // color
-        0.0, 0.5, 0.6, 1.0, // color
-        0.0, 0.5, 0.6, 1.0, // color
-        0.2, 0.5, 0.6, 1.0, // color
-        0.2, 0.5, 0.6, 1.0, // color
-        0.2, 0.5, 0.6, 1.0, // color
+        1.0, 0.0, 0.0, 1.0, // color
+        1.0, 0.0, 0.0, 1.0, // color
+        1.0, 0.0, 0.0, 1.0, // color
+        0.0, 1.0, 0.0, 1.0, // color
+        0.0, 1.0, 0.0, 1.0, // color
+        0.0, 1.0, 0.0, 1.0, // color
+        0.0, 0.0, 1.0, 1.0, // color
+        0.0, 0.0, 1.0, 1.0, // color
+        0.0, 0.0, 1.0, 1.0, // color
+        0.4, 0.8, 0.0, 1.0, // color
+        0.4, 0.8, 0.0, 1.0, // color
+        0.4, 0.8, 0.0, 1.0, // color
     ];
 
     let position_attribute_location = context.get_attrib_location(&program, "position");
     let color_attribute_location = context.get_attrib_location(&program, "idkColor");
 
-    // web_sys::console::log_1(&"wha".into());
+    let offset_attribute_location = context.get_uniform_location(&program, "u_offset");
+    let matrix_attribute_location = context.get_uniform_location(&program, "u_matrix");
+    let matrix2_attribute_location = context.get_uniform_location(&program, "u_matrix2");
+
+    context.uniform4f(offset_attribute_location.as_ref(), 0.0, 0.0, 0.0, 0.0);
+
+    context.uniform_matrix4fv_with_f32_array(
+        matrix_attribute_location.as_ref(),
+        true,
+        &[
+            1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ],
+    );
+
+    context.uniform_matrix4fv_with_f32_array(
+        matrix2_attribute_location.as_ref(),
+        true,
+        &[
+            1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ],
+    );
+
     web_sys::console::log_1(&position_attribute_location.into());
     web_sys::console::log_1(&color_attribute_location.into());
 
@@ -143,15 +132,8 @@ fn start() -> Result<(), JsValue> {
             WebGl2RenderingContext::ARRAY_BUFFER,
             &colors_array_buf_view,
             WebGl2RenderingContext::STATIC_DRAW,
-            // WebGl2RenderingContext::DYNAMIC_DRAW,
         );
     }
-    //
-    // let aaa = context
-    //     .create_vertex_array()
-    //     .ok_or("Could not create vertex array object")?;
-    // context.bind_vertex_array(Some(&aaa));
-    //
     context.vertex_attrib_pointer_with_i32(
         color_attribute_location as u32,
         4,
@@ -161,70 +143,34 @@ fn start() -> Result<(), JsValue> {
         0,
     );
     context.enable_vertex_attrib_array(color_attribute_location as u32);
-    //
-    // context.bind_vertex_array(Some(&aaa));
 
     let vert_count = (vertices.len() / 3) as i32;
     draw(&context, vert_count);
 
+    {
+        let context = context.clone();
+        let closure = Closure::<dyn FnMut(_)>::new(move |event: web_sys::MouseEvent| {
+            let (x, y) = (event.offset_x() as f32, event.offset_y() as f32);
+            let new_offset = (
+                x / canvas_size.0 * 2.0 - 1.0,
+                -(y / canvas_size.1 * 2.0 - 1.0),
+            );
+            context.uniform_matrix4fv_with_f32_array(
+                matrix_attribute_location.as_ref(),
+                true,
+                &transformations::rotation_y(new_offset.0 * 2.0 * std::f32::consts::PI),
+            );
+            context.uniform_matrix4fv_with_f32_array(
+                matrix2_attribute_location.as_ref(),
+                true,
+                &transformations::rotation_x(new_offset.1 * 2.0 * std::f32::consts::PI),
+            );
+
+            draw(&context, vert_count);
+        });
+        canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
     Ok(())
-}
-
-fn draw(context: &WebGl2RenderingContext, vert_count: i32) {
-    // context.clear_color(1.0, 1.0, 1.0, 1.0);
-    // context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
-
-    context.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, vert_count);
-    // context.draw_arrays(WebGl2RenderingContext::TRIANGLE_FAN, 0, vert_count);
-    // context.draw_arrays(WebGl2RenderingContext::LINE_LOOP, 0, vert_count);
-}
-
-pub fn compile_shader(
-    context: &WebGl2RenderingContext,
-    shader_type: u32,
-    source: &str,
-) -> Result<WebGlShader, String> {
-    let shader = context
-        .create_shader(shader_type)
-        .ok_or_else(|| String::from("Unable to create shader object"))?;
-    context.shader_source(&shader, source);
-    context.compile_shader(&shader);
-
-    if context
-        .get_shader_parameter(&shader, WebGl2RenderingContext::COMPILE_STATUS)
-        .as_bool()
-        .unwrap_or(false)
-    {
-        Ok(shader)
-    } else {
-        Err(context
-            .get_shader_info_log(&shader)
-            .unwrap_or_else(|| String::from("Unknown error creating shader")))
-    }
-}
-
-pub fn link_program(
-    context: &WebGl2RenderingContext,
-    vert_shader: &WebGlShader,
-    frag_shader: &WebGlShader,
-) -> Result<WebGlProgram, String> {
-    let program = context
-        .create_program()
-        .ok_or_else(|| String::from("Unable to create shader object"))?;
-
-    context.attach_shader(&program, vert_shader);
-    context.attach_shader(&program, frag_shader);
-    context.link_program(&program);
-
-    if context
-        .get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS)
-        .as_bool()
-        .unwrap_or(false)
-    {
-        Ok(program)
-    } else {
-        Err(context
-            .get_program_info_log(&program)
-            .unwrap_or_else(|| String::from("Unknown error creating program object")))
-    }
 }
