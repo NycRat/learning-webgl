@@ -1,8 +1,8 @@
 use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader};
 
 pub fn draw(context: &WebGl2RenderingContext, vert_count: i32) {
-    // context.clear_color(1.0, 1.0, 1.0, 1.0);
-    // context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+    context.clear_color(0.2, 0.2, 0.3, 1.0);
+    context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
 
     context.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, vert_count);
     // context.draw_arrays(WebGl2RenderingContext::TRIANGLE_FAN, 0, vert_count);

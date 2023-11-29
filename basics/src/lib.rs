@@ -46,10 +46,23 @@ fn start() -> Result<(), JsValue> {
     let program = link_program(&context, &vert_shader, &frag_shader)?;
     context.use_program(Some(&program));
 
+    context.enable(WebGl2RenderingContext::CULL_FACE);
+    context.enable(WebGl2RenderingContext::DEPTH_TEST);
+
     let vertices: [f32; 36] = [
-        0.5, -0.25, 0.25, 0.0, 0.25, 0.0, -0.5, -0.25, 0.25, -0.5, -0.25, 0.25, 0.0, 0.25, 0.0,
-        0.0, -0.25, -0.5, 0.0, -0.25, -0.5, 0.0, 0.25, 0.0, 0.5, -0.25, 0.25, 0.0, -0.25, -0.5,
-        0.5, -0.25, 0.25, -0.5, -0.25, 0.25,
+        0.5, -0.25, 0.25,
+        0.0, 0.25, 0.0,
+        -0.5, -0.25, 0.25,
+        -0.5, -0.25, 0.25,
+        0.0, 0.25, 0.0,
+        0.0, -0.25, -0.5,
+        0.0, -0.25, -0.5,
+        0.0, 0.25, 0.0,
+        0.5, -0.25, 0.25,
+        0.0, -0.25, -0.5,
+        0.5, -0.25, 0.25,
+        -0.5, -0.25, 0.25,
+
     ];
     let colors: [f32; 48] = [
         1.0, 0.0, 0.0, 1.0, // color
@@ -158,7 +171,7 @@ fn start() -> Result<(), JsValue> {
             context.uniform_matrix4fv_with_f32_array(
                 matrix_attribute_location.as_ref(),
                 true,
-                &transformations::rotation_y(new_offset.0 * 2.0 * std::f32::consts::PI),
+                &transformations::rotation_y(-new_offset.0 * 2.0 * std::f32::consts::PI),
             );
             context.uniform_matrix4fv_with_f32_array(
                 matrix2_attribute_location.as_ref(),
