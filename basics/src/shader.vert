@@ -6,14 +6,14 @@ precision highp float;
 
 in vec4 position;
 in vec4 idkColor;
-uniform vec4 u_offset;
-uniform mat4 u_matrix;
-uniform mat4 u_matrix2;
+uniform mat4 translation;
+uniform mat4 rotationX;
+uniform mat4 rotationY;
+uniform mat4 rotationZ;
 
 out vec4 inColor;
 
 void main() {
     inColor = idkColor;
-    gl_Position = u_matrix * u_matrix2 * (position + u_offset);
-    // gl_Position = u_offset + position;
+    gl_Position = position * rotationX * rotationY * rotationZ * translation;
 }

@@ -1,4 +1,5 @@
 use crate::webgl::*;
+use transformations::rotation_y;
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext};
 
@@ -50,19 +51,18 @@ fn start() -> Result<(), JsValue> {
     context.enable(WebGl2RenderingContext::DEPTH_TEST);
 
     let vertices: [f32; 36] = [
-        0.5, -0.25, 0.25,
-        0.0, 0.25, 0.0,
-        -0.5, -0.25, 0.25,
-        -0.5, -0.25, 0.25,
-        0.0, 0.25, 0.0,
-        0.0, -0.25, -0.5,
-        0.0, -0.25, -0.5,
-        0.0, 0.25, 0.0,
-        0.5, -0.25, 0.25,
-        0.0, -0.25, -0.5,
-        0.5, -0.25, 0.25,
-        -0.5, -0.25, 0.25,
-
+        0.5, -0.25, 0.25, // a
+        0.0, 0.25, 0.0, // a
+        -0.5, -0.25, 0.25, // a
+        -0.5, -0.25, 0.25, // a
+        0.0, 0.25, 0.0, // a
+        0.0, -0.25, -0.5, // a
+        0.0, -0.25, -0.5, // a
+        0.0, 0.25, 0.0, // a
+        0.5, -0.25, 0.25, // a
+        0.0, -0.25, -0.5, // a
+        0.5, -0.25, 0.25, // a
+        -0.5, -0.25, 0.25, // a
     ];
     let colors: [f32; 48] = [
         1.0, 0.0, 0.0, 1.0, // color
@@ -82,26 +82,33 @@ fn start() -> Result<(), JsValue> {
     let position_attribute_location = context.get_attrib_location(&program, "position");
     let color_attribute_location = context.get_attrib_location(&program, "idkColor");
 
-    let offset_attribute_location = context.get_uniform_location(&program, "u_offset");
-    let matrix_attribute_location = context.get_uniform_location(&program, "u_matrix");
-    let matrix2_attribute_location = context.get_uniform_location(&program, "u_matrix2");
-
-    context.uniform4f(offset_attribute_location.as_ref(), 0.0, 0.0, 0.0, 0.0);
+    let translation_location = context.get_uniform_location(&program, "translation");
+    let rotation_x_location = context.get_uniform_location(&program, "rotationX");
+    let rotation_y_location = context.get_uniform_location(&program, "rotationY");
+    let rotation_z_location = context.get_uniform_location(&program, "rotationZ");
 
     context.uniform_matrix4fv_with_f32_array(
-        matrix_attribute_location.as_ref(),
+        translation_location.as_ref(),
         true,
-        &[
-            1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-        ],
+        &transformations::translation(0.5, 0.0, 0.0),
     );
 
     context.uniform_matrix4fv_with_f32_array(
-        matrix2_attribute_location.as_ref(),
+        rotation_x_location.as_ref(),
         true,
-        &[
-            1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-        ],
+        &transformations::rotation_x(0.0),
+    );
+
+    context.uniform_matrix4fv_with_f32_array(
+        rotation_y_location.as_ref(),
+        true,
+        &transformations::rotation_y(0.0),
+    );
+
+    context.uniform_matrix4fv_with_f32_array(
+        rotation_z_location.as_ref(),
+        true,
+        &transformations::rotation_z(0.0),
     );
 
     web_sys::console::log_1(&position_attribute_location.into());
@@ -164,19 +171,26 @@ fn start() -> Result<(), JsValue> {
         let context = context.clone();
         let closure = Closure::<dyn FnMut(_)>::new(move |event: web_sys::MouseEvent| {
             let (x, y) = (event.offset_x() as f32, event.offset_y() as f32);
-            let new_offset = (
+            let (ox,oy) = (
                 x / canvas_size.0 * 2.0 - 1.0,
                 -(y / canvas_size.1 * 2.0 - 1.0),
             );
+
             context.uniform_matrix4fv_with_f32_array(
-                matrix_attribute_location.as_ref(),
+                rotation_y_location.as_ref(),
                 true,
-                &transformations::rotation_y(-new_offset.0 * 2.0 * std::f32::consts::PI),
+                &transformations::rotation_y(-ox * 2.0 * std::f32::consts::PI),
             );
             context.uniform_matrix4fv_with_f32_array(
-                matrix2_attribute_location.as_ref(),
+                rotation_x_location.as_ref(),
                 true,
-                &transformations::rotation_x(new_offset.1 * 2.0 * std::f32::consts::PI),
+                &transformations::rotation_x(oy * 2.0 * std::f32::consts::PI),
+            );
+
+            context.uniform_matrix4fv_with_f32_array(
+                translation_location.as_ref(),
+                true,
+                &transformations::translation(ox,oy,0.0),
             );
 
             draw(&context, vert_count);
