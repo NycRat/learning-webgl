@@ -1,9 +1,9 @@
 use crate::webgl::*;
-use transformations::rotation_y;
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext};
 
 pub mod transformations;
+pub mod utils;
 pub mod webgl;
 
 #[wasm_bindgen(start)]
@@ -13,23 +13,18 @@ fn start() -> Result<(), JsValue> {
     let canvas = document.get_element_by_id("canvas").unwrap();
     let canvas: HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
+    let size = 2000.0;
+    let scale = window.device_pixel_ratio();
+
+    canvas.set_width((size * scale) as u32);
+    canvas.set_height((size * scale) as u32);
+
     let context: WebGl2RenderingContext = canvas
         .get_context("webgl2")?
         .unwrap()
         .dyn_into::<WebGl2RenderingContext>()?;
 
-    let size = 2000.0;
-
-    let thingy: HtmlCanvasElement = context.canvas().unwrap().dyn_into().unwrap();
-
-    let scale = window.device_pixel_ratio();
-    canvas.set_width((size * scale) as u32);
-    canvas.set_height((size * scale) as u32);
-
-    // let canvas_size = (canvas.width(), canvas.height());
-    let canvas_size = (966 as f32, 966 as f32);
-
-    context.viewport(0, 0, thingy.width() as i32, thingy.height() as i32);
+    context.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
 
     // vert shader assigns gl position
     let vert_shader = compile_shader(
@@ -82,6 +77,7 @@ fn start() -> Result<(), JsValue> {
     let position_attribute_location = context.get_attrib_location(&program, "position");
     let color_attribute_location = context.get_attrib_location(&program, "idkColor");
 
+    let projection_location = context.get_uniform_location(&program, "projection");
     let translation_location = context.get_uniform_location(&program, "translation");
     let rotation_x_location = context.get_uniform_location(&program, "rotationX");
     let rotation_y_location = context.get_uniform_location(&program, "rotationY");
@@ -111,9 +107,6 @@ fn start() -> Result<(), JsValue> {
         &transformations::rotation_z(0.0),
     );
 
-    web_sys::console::log_1(&position_attribute_location.into());
-    web_sys::console::log_1(&color_attribute_location.into());
-
     let buffer = context.create_buffer().ok_or("Failed to create buffer")?;
     context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
 
@@ -128,10 +121,10 @@ fn start() -> Result<(), JsValue> {
         );
     }
 
-    // let vao = context
-    //     .create_vertex_array()
-    //     .ok_or("Could not create vertex array object")?;
-    // context.bind_vertex_array(Some(&vao));
+    let vao = context
+        .create_vertex_array()
+        .ok_or("Could not create vertex array object")?;
+    context.bind_vertex_array(Some(&vao));
 
     context.vertex_attrib_pointer_with_i32(
         position_attribute_location as u32,
@@ -142,7 +135,7 @@ fn start() -> Result<(), JsValue> {
         0,
     );
     context.enable_vertex_attrib_array(position_attribute_location as u32);
-    // context.bind_vertex_array(Some(&vao));
+    context.bind_vertex_array(Some(&vao));
 
     let buffer2 = context.create_buffer().ok_or("Failed to create buffer")?;
     context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer2));
@@ -170,12 +163,25 @@ fn start() -> Result<(), JsValue> {
     {
         let context = context.clone();
         let closure = Closure::<dyn FnMut(_)>::new(move |event: web_sys::MouseEvent| {
+            let (canvas_size_x, canvas_size_y) = utils::get_window_size();
             let (x, y) = (event.offset_x() as f32, event.offset_y() as f32);
-            let (ox,oy) = (
-                x / canvas_size.0 * 2.0 - 1.0,
-                -(y / canvas_size.1 * 2.0 - 1.0),
+            let (ox, oy) = (
+                (x / canvas_size_x * 2.0 - 1.0) * canvas_size_x / canvas_size_y,
+                -(y / canvas_size_y * 2.0 - 1.0),
             );
 
+            // PROJECTION THING
+            context.uniform_matrix4fv_with_f32_array(
+                projection_location.as_ref(),
+                true,
+                &transformations::scaling(canvas_size_y / canvas_size_x, 1.0, 1.0),
+            );
+
+            context.uniform_matrix4fv_with_f32_array(
+                rotation_y_location.as_ref(),
+                true,
+                &transformations::rotation_y(-ox * 2.0 * std::f32::consts::PI),
+            );
             context.uniform_matrix4fv_with_f32_array(
                 rotation_y_location.as_ref(),
                 true,
@@ -190,7 +196,7 @@ fn start() -> Result<(), JsValue> {
             context.uniform_matrix4fv_with_f32_array(
                 translation_location.as_ref(),
                 true,
-                &transformations::translation(ox,oy,0.0),
+                &transformations::translation(ox, oy, 0.0),
             );
 
             draw(&context, vert_count);
