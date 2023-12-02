@@ -21,9 +21,9 @@ void main() {
   // compute the light by taking the dot product
   // of the normal to the light's reverse direction
   float light = dot(normal, u_reverse_light_direction);
-  if (light < 0.0) {
-    // light += 1.2;
-  }
+  light /= 2.3;
+  light += 0.5;
+
   // light = max(light, 0.0) + 0.2;
   
   // out_color = u_color;

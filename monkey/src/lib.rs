@@ -1,3 +1,5 @@
+use std::{cell::Cell, rc::Rc};
+
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext};
 
@@ -64,7 +66,6 @@ fn start() -> Result<(), JsValue> {
     );
 
     let vertices_len = objs::set_positions(&gl, &cube_obj);
-    web_sys::console::log_1(&vertices_len.into());
 
     gl.enable_vertex_attrib_array(attrib_position_l);
     gl.vertex_attrib_pointer_with_i32(
@@ -91,88 +92,82 @@ fn start() -> Result<(), JsValue> {
     );
     // }
 
-    // GET DATA INTO BUFFER
-    // let color_buffer = gl.create_buffer(); gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, color_buffer.as_ref());
-    // objs::set_colors(&gl);
-    // gl.enable_vertex_attrib_array(attrib_color_l);
-    // gl.vertex_attrib_pointer_with_i32(
-    //     attrib_color_l,
-    //     3,
-    //     WebGl2RenderingContext::UNSIGNED_BYTE,
-    //     true,
-    //     0,
-    //     0,
-    // );
-    //}
-
     gl.use_program(Some(&program));
 
     gl.uniform3f(uniform_reverse_light_direction_l.as_ref(), 0.5, 0.7, 1.0);
-    // gl.uniform3f(
-    //     uniform_reverse_light_direction_l.as_ref(),
-    //     0.37904903292655945,
-    //     0.5306686162948608,
-    //     0.7580980658531189,
-    // );
-
-    // gl.uniform3fv(reverseLightDirectionLocation, normalize([0.5, 0.7, 1]));
 
     gl.bind_vertex_array(vao.as_ref());
 
-    // DRAW
     gl.clear_color(0.2, 0.1, 0.2, 1.0);
 
     let mut x = 0.0;
+    let state = Rc::new(Cell::new(0.0f32));
 
-    let gl = gl.clone();
-    let update_closure = Closure::<dyn FnMut()>::new(move || {
-        let (size_x, size_y) = utils::get_window_size();
-        x += 1.0;
-        let xx = x;
-        let (x, y) = (0.0, 0.0);
+    {
+        let state = state.clone();
+        let closure = Closure::<dyn FnMut(_)>::new(move |event: web_sys::WheelEvent| {
+            let val = state.get();
+            state.set((val + event.delta_y() as f32).clamp(0.0, 2000.0));
+        });
+        window
+            .add_event_listener_with_callback("wheel", closure.as_ref().unchecked_ref())
+            .unwrap();
+        closure.forget();
+    }
 
-        let projection_matrix =
-            transformations::perspective(std::f32::consts::PI / 2.0, size_x / size_y, 1.0, 200.0);
+    {
+        let gl = gl.clone();
+        let state = state.clone();
+        let update_closure = Closure::<dyn FnMut()>::new(move || {
+            let (size_x, size_y) = utils::get_window_size();
+            x += 1.0;
 
-        let camera_matrix = utils::matrix_multiply(
-            utils::matrix_multiply(
-                transformations::rotation_y(-x / size_x * 1.0),
-                transformations::rotation_x(-y / size_y * 1.0),
-            ),
-            transformations::translation(0.0, 0.0, 4.0),
-        );
-        let view_matrix = utils::invert_matrix(camera_matrix);
-        let view_projection_matrix = utils::matrix_multiply(projection_matrix, view_matrix);
+            web_sys::console::log_1(&state.get().into());
 
-        let final_transformation_matrix = utils::matrix_multiply(
-            utils::matrix_multiply(
-                view_projection_matrix,
-                transformations::translation(0.0, 0.0, -0.5),
-                // transformations::rotation_z(x / size_x * 4.0 * std::f32::consts::PI),
-            ),
-            transformations::rotation_y(xx / 100.0),
-            // transformations::translation(0.0,0.0,-40.0),
-        );
+            let projection_matrix = transformations::perspective(
+                std::f32::consts::PI / (8.0),
+                size_x / size_y,
+                1.0,
+                200.0,
+            );
 
-        gl.uniform_matrix4fv_with_f32_array(
-            uniform_transformation_l.as_ref(),
-            true,
-            &final_transformation_matrix,
-        );
+            let camera_matrix =
+                transformations::translation(0.0, 0.0, 2.0 + state.get() / 2000.0 * 26.0);
+            //     utils::matrix_multiply(
+            //     utils::matrix_multiply(
+            //         transformations::rotation_y(-x / size_x * 1.0),
+            //         transformations::rotation_x(-y / size_y * 1.0),
+            //     ),
+            //     transformations::translation(0.0, 0.0, 4.0),
+            // );
+            let view_matrix = utils::invert_matrix(camera_matrix);
+            let view_projection_matrix = utils::matrix_multiply(projection_matrix, view_matrix);
 
-        draw(&gl, vertices_len);
-    });
+            let final_transformation_matrix = utils::matrix_multiply(
+                utils::matrix_multiply(
+                    view_projection_matrix,
+                    transformations::translation(0.0, 0.0, -0.5),
+                ),
+                transformations::rotation_y(x / 100.0),
+            );
 
-    window.set_interval_with_callback_and_timeout_and_arguments_0(update_closure.as_ref().unchecked_ref(), 1000/60)?;
-    update_closure.forget();
+            gl.uniform_matrix4fv_with_f32_array(
+                uniform_transformation_l.as_ref(),
+                true,
+                &final_transformation_matrix,
+            );
 
-    let mouse_move_closure = Closure::<dyn FnMut(_)>::new(move |event: web_sys::MouseEvent| {
-    });
-    window.add_event_listener_with_callback(
-        "mousemove",
-        mouse_move_closure.as_ref().unchecked_ref(),
-    )?;
-    mouse_move_closure.forget();
+            draw(&gl, vertices_len);
+        });
+
+        window
+            .set_interval_with_callback_and_timeout_and_arguments_0(
+                update_closure.as_ref().unchecked_ref(),
+                1000 / 60,
+            )
+            .unwrap();
+        update_closure.forget();
+    }
 
     Ok(())
 }
