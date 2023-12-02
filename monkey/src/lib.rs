@@ -1,4 +1,7 @@
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext};
@@ -26,9 +29,6 @@ fn start() -> Result<(), JsValue> {
         .dyn_into::<WebGl2RenderingContext>()?;
 
     gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
-
-    gl.enable(WebGl2RenderingContext::CULL_FACE);
-    gl.enable(WebGl2RenderingContext::DEPTH_TEST);
 
     let cube_obj = objs::get_cube_obj();
 
@@ -92,16 +92,22 @@ fn start() -> Result<(), JsValue> {
     );
     // }
 
+    gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+    gl.enable(WebGl2RenderingContext::CULL_FACE);
+
+    gl.clear_color(0.2, 0.1, 0.2, 1.0);
+    gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+
     gl.use_program(Some(&program));
 
     gl.uniform3f(uniform_reverse_light_direction_l.as_ref(), 0.5, 0.7, 1.0);
 
     gl.bind_vertex_array(vao.as_ref());
 
-    gl.clear_color(0.2, 0.1, 0.2, 1.0);
-
     let mut x = 0.0;
-    let state = Rc::new(Cell::new(0.0f32));
+    let state = Rc::new(Cell::new(1000.0f32));
+
+    let mut now = web_sys::js_sys::Date::now();
 
     {
         let state = state.clone();
@@ -115,20 +121,25 @@ fn start() -> Result<(), JsValue> {
         closure.forget();
     }
 
+    let f = Rc::new(RefCell::new(None::<Closure<dyn FnMut()>>));
+    let g = f.clone();
     {
         let gl = gl.clone();
         let state = state.clone();
-        let update_closure = Closure::<dyn FnMut()>::new(move || {
+
+        // let update_closure =
+        let window = window.clone();
+        *g.borrow_mut() = Some(Closure::<dyn FnMut()>::new(move || {
             let (size_x, size_y) = utils::get_window_size();
             x += 1.0;
 
-            web_sys::console::log_1(&state.get().into());
+            // web_sys::console::log_1(&state.get().into());
 
             let projection_matrix = transformations::perspective(
                 std::f32::consts::PI / (8.0),
                 size_x / size_y,
-                1.0,
-                200.0,
+                10.0,
+                20.0,
             );
 
             let camera_matrix =
@@ -146,9 +157,10 @@ fn start() -> Result<(), JsValue> {
             let final_transformation_matrix = utils::matrix_multiply(
                 utils::matrix_multiply(
                     view_projection_matrix,
-                    transformations::translation(0.0, 0.0, -0.5),
+                    transformations::translation(0.0, 0.0, -3.5),
                 ),
                 transformations::rotation_y(x / 100.0),
+                // transformations::rotation_y(0.0),
             );
 
             gl.uniform_matrix4fv_with_f32_array(
@@ -158,16 +170,32 @@ fn start() -> Result<(), JsValue> {
             );
 
             draw(&gl, vertices_len);
-        });
 
-        window
-            .set_interval_with_callback_and_timeout_and_arguments_0(
-                update_closure.as_ref().unchecked_ref(),
-                1000 / 60,
-            )
-            .unwrap();
-        update_closure.forget();
+            let now2 = web_sys::js_sys::Date::now();
+            web_sys::console::log_1(&(now2 - now).into());
+            now = now2;
+
+            window
+                .request_animation_frame(f.borrow().as_ref().unwrap().as_ref().unchecked_ref())
+                .unwrap();
+        }));
+
+        // window.add_event_listener_with_callback("mousemove", update_closure.as_ref().unchecked_ref())?;
+
+        // window
+        //     .set_interval_with_callback_and_timeout_and_arguments_0(
+        //         update_closure.as_ref().unchecked_ref(),
+        //         // 1000 / 30,
+        //         1,
+        //     )
+        //     .unwrap();
+
+        // update_closure.forget();
     }
+
+    window
+        .request_animation_frame(g.borrow().as_ref().unwrap().as_ref().unchecked_ref())
+        .unwrap();
 
     Ok(())
 }
