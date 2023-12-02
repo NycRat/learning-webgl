@@ -1,0 +1,23 @@
+:root,
+body {
+  font-family: "Courier Prime", monospace;
+  margin: 0;
+  padding: 15px;
+  background-color: #1a334d;
+  color: #fff4f0;
+  text-align: center;
+}
+
+h1 {
+  text-shadow: 0 0 10px #ffffffaa;
+}
+
+a {
+  color: #a1e6e6;
+}
+
+.github {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+}
