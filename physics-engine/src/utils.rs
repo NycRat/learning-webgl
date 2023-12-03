@@ -163,10 +163,6 @@ pub fn matrix_multiply(matrix_b: [f32; 16], matrix_a: [f32; 16]) -> [f32; 16] {
             matrix_c[row_a * 4 + column_b] = (0..4).map(|x| matrix_a[row_a*4 + x] * matrix_b[x * 4 + column_b]).sum();
         }
     }
-        
-    // unsafe {
-    //     matrixmultiply::sgemm(4, 4, 4, 1.0, &matrix_a[0], 1, 1, &matrix_b[0], 1, 1, 0.0, &mut matrix_c[0], 1, 2);
-    // }
     return matrix_c;
 }
 
@@ -190,4 +186,13 @@ pub fn normalize(v: &[f32; 3]) -> [f32; 3] {
   } else {
     [0.0, 0.0, 0.0]
   }
+}
+
+pub fn transpose(m: [f32; 16]) -> [f32; 16] {
+    [
+      m[0], m[4], m[8], m[12],
+      m[1], m[5], m[9], m[13],
+      m[2], m[6], m[10], m[14],
+      m[3], m[7], m[11], m[15],
+    ]
 }

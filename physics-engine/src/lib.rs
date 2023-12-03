@@ -55,6 +55,8 @@ fn start() -> Result<(), JsValue> {
     // let attrib_color_l = gl.get_attrib_location(&program, "a_color") as u32;
 
     let uniform_transformation_l = gl.get_uniform_location(&program, "u_transformation");
+    let uniform_world_invserse_transposed_l =
+        gl.get_uniform_location(&program, "u_world_inverse_transposed");
     let uniform_reverse_light_direction_l =
         gl.get_uniform_location(&program, "u_reverse_light_direction");
 
@@ -187,6 +189,8 @@ fn start() -> Result<(), JsValue> {
             let delta_time = (now - state.last_tick) as f32;
             state.last_tick = now;
 
+            state.x += std::f32::consts::PI * delta_time / 1000.0;
+
             if state.pointer_locked {
                 let target = state.mouse.get_target();
                 if state.keys_pressed.contains("a") {
@@ -209,52 +213,56 @@ fn start() -> Result<(), JsValue> {
                 }
             }
 
-            // web_sys::console::log_1(&format!("{state:?}").into());
-            // web_sys::console::log_1(&format!("{delta_time:?}").into());
-
             let projection_matrix = transformations::perspective(
-                std::f32::consts::PI / (6.0),
+                std::f32::consts::PI / (3.0),
                 size_x / size_y,
                 0.5,
                 200.0,
             );
 
-            let camera_matrix = utils::matrix_multiply(
-                transformations::translation(
-                    state.camera_position[0],
-                    state.camera_position[1],
-                    state.camera_position[2],
-                ),
-                transformations::look_at(
-                    &state.camera_position,
-                    &state.mouse.get_look_at_target(&state.camera_position),
-                ),
+            let camera_matrix = transformations::look_at(
+                &state.camera_position,
+                &state.mouse.get_look_at_target(&state.camera_position),
             );
 
             let view_matrix = utils::invert_matrix(camera_matrix);
             let view_projection_matrix = utils::matrix_multiply(projection_matrix, view_matrix);
 
-            let final_transformation_matrix = utils::matrix_multiply(
-                utils::matrix_multiply(
-                    view_projection_matrix,
-                    transformations::translation(0.0, 0.0, -1.0),
-                ),
-                transformations::rotation_y(0.0),
+            let world_matrix = utils::matrix_multiply(
+                transformations::translation(0.0, 0.0, -5.0),
+                transformations::rotation_y(state.x),
             );
+
+            let world_view_projection_matrix =
+                utils::matrix_multiply(view_projection_matrix, world_matrix);
+
+            // INVERSED FOR NORMALS
+            let world_inverse_transposed_matrix =
+                utils::transpose(utils::invert_matrix(world_matrix));
 
             gl.uniform_matrix4fv_with_f32_array(
                 uniform_transformation_l.as_ref(),
                 true,
-                &final_transformation_matrix,
+                &world_view_projection_matrix,
+            );
+
+            gl.uniform_matrix4fv_with_f32_array(
+                uniform_world_invserse_transposed_l.as_ref(),
+                true,
+                &world_inverse_transposed_matrix,
             );
 
             draw(&gl, vertices_len);
 
-            window.request_animation_frame(f.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
+            window
+                .request_animation_frame(f.borrow().as_ref().unwrap().as_ref().unchecked_ref())
+                .unwrap();
         }));
     }
 
-    window.request_animation_frame(g.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
+    window
+        .request_animation_frame(g.borrow().as_ref().unwrap().as_ref().unchecked_ref())
+        .unwrap();
 
     Ok(())
 }

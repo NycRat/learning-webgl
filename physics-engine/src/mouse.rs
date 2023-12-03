@@ -34,6 +34,9 @@ impl Mouse {
         if self.pitch > std::f32::consts::PI / 2.0 {
             self.pitch = std::f32::consts::PI / 2.0 - 0.001;
         }
+        if self.pitch < -std::f32::consts::PI / 2.0 {
+            self.pitch = -std::f32::consts::PI / 2.0 + 0.001;
+        }
 
         self.update_target();
     }

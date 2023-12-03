@@ -9,16 +9,18 @@ pub struct State {
     pub pointer_locked: bool,
     pub mouse: Mouse,
     pub last_tick: f64,
+    pub x: f32,
 }
 
 impl State {
     pub fn new() -> Self {
         State {
-            camera_position: [0.0, 0.0, 10.0],
+            camera_position: [0.0, 0.0, 0.0],
             keys_pressed: HashSet::new(),
             pointer_locked: false,
             mouse: Mouse::new(1.0 / 2500.0),
             last_tick: web_sys::js_sys::Date::now(),
+            x: 0.0,
         }
     }
 }
