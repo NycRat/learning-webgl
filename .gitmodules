@@ -1,0 +1,3 @@
+[submodule "wust-engine"]
+	path = wust-engine
+	url = https://github.com/nycrat/wust-engine
