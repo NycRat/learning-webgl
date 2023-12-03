@@ -8,6 +8,7 @@ pub struct State {
     pub keys_pressed: HashSet<String>,
     pub pointer_locked: bool,
     pub mouse: Mouse,
+    pub last_tick: f64,
 }
 
 impl State {
@@ -17,6 +18,7 @@ impl State {
             keys_pressed: HashSet::new(),
             pointer_locked: false,
             mouse: Mouse::new(1.0 / 2500.0),
+            last_tick: web_sys::js_sys::Date::now(),
         }
     }
 }

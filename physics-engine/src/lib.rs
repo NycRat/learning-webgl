@@ -10,7 +10,7 @@ pub mod state;
 pub mod transformations;
 pub mod utils;
 
-const SPEED: f32 = 0.08;
+const SPEED: f32 = 0.005;
 
 #[wasm_bindgen(start)]
 fn start() -> Result<(), JsValue> {
@@ -111,7 +111,6 @@ fn start() -> Result<(), JsValue> {
         let closure = Closure::<dyn FnMut()>::new(move || {
             let mut state = state.borrow_mut();
             state.pointer_locked = document.pointer_lock_element().is_some();
-            web_sys::console::log_1(&state.pointer_locked.into());
         });
         window
             .add_event_listener_with_callback("pointerlockchange", closure.as_ref().unchecked_ref())
@@ -172,42 +171,51 @@ fn start() -> Result<(), JsValue> {
         closure.forget();
     }
 
+    let f = Rc::new(RefCell::new(None::<Closure<dyn FnMut()>>));
+    let g = f.clone();
+
     {
         let gl = gl.clone();
         let state = state.clone();
-        let update_closure = Closure::<dyn FnMut()>::new(move || {
+        let window = window.clone();
+
+        *g.borrow_mut() = Some(Closure::<dyn FnMut()>::new(move || {
             let (size_x, size_y) = utils::get_window_size();
 
             let mut state = state.borrow_mut();
+            let now = web_sys::js_sys::Date::now();
+            let delta_time = (now - state.last_tick) as f32;
+            state.last_tick = now;
 
             if state.pointer_locked {
                 let target = state.mouse.get_target();
                 if state.keys_pressed.contains("a") {
-                    state.camera_position[0] -= -target[2] * SPEED;
-                    state.camera_position[2] -= target[0] * SPEED;
+                    state.camera_position[0] -= -target[2] * SPEED * delta_time;
+                    state.camera_position[2] -= target[0] * SPEED * delta_time;
                 }
                 if state.keys_pressed.contains("d") {
-                    state.camera_position[0] += -target[2] * SPEED;
-                    state.camera_position[2] += target[0] * SPEED;
+                    state.camera_position[0] += -target[2] * SPEED * delta_time;
+                    state.camera_position[2] += target[0] * SPEED * delta_time;
                 }
                 if state.keys_pressed.contains("w") {
                     for i in 0..3 {
-                        state.camera_position[i] += target[i] * SPEED;
+                        state.camera_position[i] += target[i] * SPEED * delta_time;
                     }
                 }
                 if state.keys_pressed.contains("s") {
                     for i in 0..3 {
-                        state.camera_position[i] -= target[i] * SPEED;
+                        state.camera_position[i] -= target[i] * SPEED * delta_time;
                     }
                 }
             }
 
             // web_sys::console::log_1(&format!("{state:?}").into());
+            // web_sys::console::log_1(&format!("{delta_time:?}").into());
 
             let projection_matrix = transformations::perspective(
                 std::f32::consts::PI / (6.0),
                 size_x / size_y,
-                1.0,
+                0.5,
                 200.0,
             );
 
@@ -241,16 +249,12 @@ fn start() -> Result<(), JsValue> {
             );
 
             draw(&gl, vertices_len);
-        });
 
-        window
-            .set_interval_with_callback_and_timeout_and_arguments_0(
-                update_closure.as_ref().unchecked_ref(),
-                1000 / 60,
-            )
-            .unwrap();
-        update_closure.forget();
+            window.request_animation_frame(f.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
+        }));
     }
+
+    window.request_animation_frame(g.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
 
     Ok(())
 }

@@ -31,6 +31,9 @@ impl Mouse {
     pub fn process_mouse_movement(&mut self, delta_x: f32, delta_y: f32) {
         self.yaw -= delta_x * self.sensitivity;
         self.pitch -= delta_y * self.sensitivity;
+        if self.pitch > std::f32::consts::PI / 2.0 {
+            self.pitch = std::f32::consts::PI / 2.0 - 0.001;
+        }
 
         self.update_target();
     }
