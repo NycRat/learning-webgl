@@ -138,8 +138,8 @@ fn start() -> Result<(), JsValue> {
             let projection_matrix = transformations::perspective(
                 std::f32::consts::PI / (8.0),
                 size_x / size_y,
-                10.0,
-                20.0,
+                1.0,
+                200.0,
             );
 
             let camera_matrix =
